@@ -13,15 +13,53 @@ my $exe = Win::Exe->new($ifile) or die("Can't load exe file");
 my $bfs = $exe->FindResource('', 1) or die("Can't read BFS resource");
 
 # Read the header
-my ($magic, $version, $totalsize, $filecount, $unk3, $fileindexoffset, $unk5, $dirindexoffset, $unk6) = unpack('(a4LLLLSSLL)<', $bfs);
+my ($magic, $version, $totalsize, $filecount, $unk3, $fileindexoffset, $unk5, $dirindexoffset, $dircount) = unpack('(a4LLLLSSLL)<', $bfs);
 # Verify that this is in fact a BFS
 $magic eq "\x{ff}BFS" or die("Invalid magic");
 $version == 1 or die("Invalid version");
-print("totalsize=$totalsize filecount=$filecount unk3=$unk3 fileindexoffset=$fileindexoffset unk5=$unk5 dirindexoffset=$dirindexoffset unk6=$unk6\n");
+print("totalsize=$totalsize filecount=$filecount unk3=$unk3 fileindexoffset=$fileindexoffset unk5=$unk5 dirindexoffset=$dirindexoffset dircount=$dircount\n");
 
+my %files;
+my $filenameoffset = $fileindexoffset;
 for (my $fileno = 0; $fileno < $filecount; $fileno++) {
 	# 16bit file name length
+	my $namelen = unpack('S<', substr($bfs, $filenameoffset, 2));
+	$filenameoffset += 2;
 	# N characters file name
-	# padding to 32bit
+	my $filename = defuscate(substr($bfs, $filenameoffset, $namelen));
+	$filenameoffset += $namelen;
+	# Number of padding characters up to 4 byte alignment
+	my $pad = 3 - (2 + $namelen + 3) % 4;
+	$filenameoffset += $pad;
 	# 32bit offset of data
+	my $fileoffset = unpack('L<', substr($bfs, $filenameoffset, 4));
+	$filenameoffset += 4;
+	#printf("filename=%s pad=%d fileoffset=0x%08x offset=0x%08x\n", $filename, $pad, $fileoffset, $filenameoffset);
+	$files{$filename} = { 'name' => $filename, 'offset' => $fileoffset };
+}
+
+# dirindex: 67dc..87db (8192 bytes)
+# 4x 32bit header?
+# dircount entries
+# each 4x 32bit
+
+for my $file (keys(%files)) {
+	# file entry:
+	# 32bit compressed size
+	# 32bit uncompressed size
+	# 32bit type (02 = uncompressed?)
+	# compressed_size bytes data
+	
+}
+
+
+sub defuscate {
+	#my ($input) = @_;
+	#my $output = '';
+	#for my $char (split('', $input)) {
+	#	push($output, chr(ord($char) ^ 0xaa));
+	#}
+	#return $output;
+	#return join('', map({ chr(ord($_) ^ 0xaa) } split('', $_[0]));
+	return $_[0] ^ chr(0xaa) x length($_[0]);
 }
