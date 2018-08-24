@@ -1,0 +1,32 @@
+unpapp
+======
+
+PerlApp 4.1 extraction utility.
+
+unpapp is a tool that helps recover Perl code from
+Windows executables that were originally created with
+ActiveState PerlApp.
+
+It is intended as a recovery tool for poor souls who
+accidentally deleted their source code and didn't keep
+a backup.
+
+It is NOT meant for stealing code that you don't own
+the copyright or usage rights of.
+
+
+Thanks to https://www.perlmonks.org/?node_id=394546
+for finding out how PerlApp obfuscates data.
+
+Instead of trying to brute-force extract useful data,
+unpapp actually parses and extracts the exe file and
+the data structures contained within.
+
+No code was reverse engineered for this, everything
+was simply figured out from analysing the encoded data.
+
+
+unpapp is released under a permissive, 2-clause BSD
+license. Copyright is 2012, 2018 by Gregor Riepl.
+Please refer to the license file for details.
+
