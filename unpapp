@@ -2,11 +2,15 @@
 
 use strict;
 use warnings;
+use File::Basename;
+use File::Path qw(make_path);
+use IO::Uncompress::AnyInflate qw(anyinflate $AnyInflateError);
 use FindBin;
 use lib "$FindBin::Bin";
 use Win::Exe;
 
 my $ifile = $ARGV[0] or die("Usage: unpapp <papp.exe>");
+my $odir = "perl";
 
 # Extract the BFS resource
 my $exe = Win::Exe->new($ifile) or die("Can't load exe file");
@@ -17,7 +21,7 @@ my ($magic, $version, $totalsize, $filecount, $unk3, $fileindexoffset, $unk5, $d
 # Verify that this is in fact a BFS
 $magic eq "\x{ff}BFS" or die("Invalid magic");
 $version == 1 or die("Invalid version");
-print("totalsize=$totalsize filecount=$filecount unk3=$unk3 fileindexoffset=$fileindexoffset unk5=$unk5 dirindexoffset=$dirindexoffset dircount=$dircount\n");
+#printf("totalsize=%d filecount=%d unk3=%d fileindexoffset=%d unk5=%d dirindexoffset=%d dircount=%d\n", $totalsize, $filecount, $unk3, $fileindexoffset, $unk5, $dirindexoffset, $dircount);
 
 my %files;
 my $filenameoffset = $fileindexoffset;
@@ -42,14 +46,57 @@ for (my $fileno = 0; $fileno < $filecount; $fileno++) {
 # 4x 32bit header?
 # dircount entries
 # each 4x 32bit
+# TODO
 
-for my $file (keys(%files)) {
+for my $filename (keys(%files)) {
 	# file entry:
+	my $file = $files{$filename};
 	# 32bit compressed size
 	# 32bit uncompressed size
 	# 32bit type (02 = uncompressed?)
+	my ($uncompsize, $compsize, $type) = unpack('(LLL)<', substr($bfs, $file->{offset}, 3 * 4));
 	# compressed_size bytes data
-	
+	my $data = substr($bfs, $file->{offset} + 3 * 4, $compsize);
+	#printf("filename=%s uncompsize=%d compsize=%d type=%d\n", $filename, $uncompsize, $compsize, $type);
+
+	my $cleartext = undef;
+	if ($type == 2) {
+		# Deobfuscate
+		$cleartext = defuscate($data);
+	} elsif ($type == 3) {
+		# Decompress and deobfuscate
+		my $uncompressed = '';
+		anyinflate(\$data => \$uncompressed);
+		if ($uncompressed) {
+			$cleartext = defuscate($uncompressed);
+		} else {
+			warn("Can't decompress data: $AnyInflateError");
+		}
+	} else {
+		printf("Unsupported type %d for file %s\n", $type, $file->{name});
+	}
+
+	# Did we get any data?
+	if (defined($cleartext)) {
+		if ($file->{name} =~ /^\*(.*)/) {
+			# Special file handling
+			printf("Special file: %s\n", $1);
+		} else {
+			my $ofile = sprintf("%s/%s", $odir, $file->{name});
+			# Create intermediate dirs if necessary
+			my $dir = dirname($ofile);
+			# Ignore errors, fail on open
+			make_path($dir);
+			# And write
+			open(my $output, '>', $ofile);
+			if ($output) {
+				printf("Writing: %s\n", $ofile);
+				print($output $cleartext);
+			} else {
+				warn("Can't open $ofile");
+			}
+		}
+	}
 }
 
 
