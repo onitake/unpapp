@@ -1,0 +1,27 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use FindBin;
+use lib "$FindBin::Bin";
+use Win::Exe;
+
+my $ifile = $ARGV[0] or die("Usage: unpapp <papp.exe>");
+
+# Extract the BFS resource
+my $exe = Win::Exe->new($ifile) or die("Can't load exe file");
+my $bfs = $exe->FindResource('', 1) or die("Can't read BFS resource");
+
+# Read the header
+my ($magic, $version, $totalsize, $filecount, $unk3, $fileindexoffset, $unk5, $dirindexoffset, $unk6) = unpack('(a4LLLLSSLL)<', $bfs);
+# Verify that this is in fact a BFS
+$magic eq "\x{ff}BFS" or die("Invalid magic");
+$version == 1 or die("Invalid version");
+print("totalsize=$totalsize filecount=$filecount unk3=$unk3 fileindexoffset=$fileindexoffset unk5=$unk5 dirindexoffset=$dirindexoffset unk6=$unk6\n");
+
+for (my $fileno = 0; $fileno < $filecount; $fileno++) {
+	# 16bit file name length
+	# N characters file name
+	# padding to 32bit
+	# 32bit offset of data
+}
