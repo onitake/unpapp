@@ -11,6 +11,7 @@ use Win::Exe;
 
 my $ifile = $ARGV[0] or die("Usage: unpapp <papp.exe>");
 my $odir = "perl";
+my $sdir = "special";
 
 # Extract the BFS resource
 my $exe = Win::Exe->new($ifile) or die("Can't load exe file");
@@ -78,11 +79,15 @@ for my $filename (keys(%files)) {
 
 	# Did we get any data?
 	if (defined($cleartext)) {
-		if ($file->{name} =~ /^\*(.*)/) {
+		my $ofile;
+		if ($file->{name} =~ /^[*<](.*)/) {
 			# Special file handling
 			printf("Special file: %s\n", $1);
+			$ofile = sprintf("%s/%s", $sdir, $1);
 		} else {
-			my $ofile = sprintf("%s/%s", $odir, $file->{name});
+			$ofile = sprintf("%s/%s", $odir, $file->{name});
+		}
+		if (defined($ofile)) {
 			# Create intermediate dirs if necessary
 			my $dir = dirname($ofile);
 			# Ignore errors, fail on open
